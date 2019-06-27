@@ -130,8 +130,12 @@ def load_tf_weights_in_bert(model, tf_checkpoint_path):
             if l[0] == 'kernel' or l[0] == 'gamma':
                 pointer = getattr(pointer, 'weight')
             elif l[0] == 'output_bias' or l[0] == 'beta':
+                if pointer == model:
+                    pointer = getattr(pointer, 'classifier')
                 pointer = getattr(pointer, 'bias')
             elif l[0] == 'output_weights':
+                if pointer == model:
+                    pointer = getattr(pointer, 'classifier')
                 pointer = getattr(pointer, 'weight')
             elif l[0] == 'squad':
                 pointer = getattr(pointer, 'classifier')
@@ -663,7 +667,8 @@ class BertPreTrainedModel(nn.Module):
         else:
             if from_tf:
                 # Directly load from a TensorFlow checkpoint
-                archive_file = os.path.join(pretrained_model_name_or_path, TF_WEIGHTS_NAME)
+                archive_file = pretrained_model_name_or_path if not os.path.isdir(pretrained_model_name_or_path) else \
+                    os.path.join(pretrained_model_name_or_path, TF_WEIGHTS_NAME)
                 config_file = os.path.join(pretrained_model_name_or_path, BERT_CONFIG_NAME)
             else:
                 archive_file = os.path.join(pretrained_model_name_or_path, WEIGHTS_NAME)
@@ -750,6 +755,7 @@ class BertPreTrainedModel(nn.Module):
             for name, child in module._modules.items():
                 if child is not None:
                     load(child, prefix + name + '.')
+
         start_prefix = ''
         if not hasattr(model, 'bert') and any(s.startswith('bert.') for s in state_dict.keys()):
             start_prefix = 'bert.'
@@ -762,7 +768,7 @@ class BertPreTrainedModel(nn.Module):
                 model.__class__.__name__, unexpected_keys))
         if len(error_msgs) > 0:
             raise RuntimeError('Error(s) in loading state_dict for {}:\n\t{}'.format(
-                               model.__class__.__name__, "\n\t".join(error_msgs)))
+                model.__class__.__name__, "\n\t".join(error_msgs)))
         return model
 
 
